@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>模型多想想，人类少操心 — Agent Tool Discipline</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0a0a0f;
+  --card: #13131a;
+  --text: #e4e4ec;
+  --muted: #8888a0;
+  --accent: #6c5ce7;
+  --accent2: #00cec9;
+  --warn: #fdcb6e;
+  --danger: #e17055;
+  --green: #00b894;
+  --radius: 12px;
+  --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+body {
+  background: var(--bg); color: var(--text); font-family: var(--font);
+  overflow: hidden; height: 100vh; width: 100vw;
+}
+.slides { height: 100%; width: 100%; position: relative; }
+.slide {
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; padding: 5vh 8vw;
+  opacity: 0; transform: translateY(30px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+  pointer-events: none; text-align: center;
+}
+.slide.active { opacity: 1; transform: translateY(0); pointer-events: auto; }
+.slide.past { opacity: 0; transform: translateY(-30px); }
+h1 { font-size: clamp(2rem, 5vw, 3.5rem); font-weight: 800; line-height: 1.2; margin-bottom: 0.5em; }
+h2 { font-size: clamp(1.5rem, 3.5vw, 2.5rem); font-weight: 700; margin-bottom: 0.6em; }
+h3 { font-size: clamp(1rem, 2vw, 1.3rem); font-weight: 600; margin-bottom: 0.8em; color: var(--muted); }
+p { font-size: clamp(0.9rem, 1.5vw, 1.1rem); line-height: 1.7; max-width: 800px; color: var(--muted); }
+.gradient { background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.accent { color: var(--accent2); }
+.warn { color: var(--warn); }
+.green { color: var(--green); }
+.danger { color: var(--danger); }
+.badge {
+  display: inline-block; padding: 0.3em 0.9em; border-radius: 99px;
+  font-size: 0.8em; font-weight: 600; margin: 0.2em;
+}
+.badge-purple { background: rgba(108,92,231,0.2); color: var(--accent); }
+.badge-teal { background: rgba(0,206,201,0.2); color: var(--accent2); }
+.badge-yellow { background: rgba(253,203,110,0.2); color: var(--warn); }
+.pill-row { display: flex; gap: 0.5em; flex-wrap: wrap; justify-content: center; margin: 1em 0; }
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap: 1em; max-width: 800px; margin: 1.5em auto; }
+.stat-card {
+  background: var(--card); border-radius: var(--radius); padding: 1.5em 1em;
+  border: 1px solid rgba(255,255,255,0.06); text-align: center;
+}
+.stat-card .num { font-size: 2.5em; font-weight: 800; line-height: 1.1; }
+.stat-card .label { font-size: 0.85em; color: var(--muted); margin-top: 0.3em; }
+.tier-row { display: flex; gap: 1em; max-width: 1000px; margin: 1.5em auto; flex-wrap: wrap; justify-content: center; }
+.tier-card {
+  flex: 1; min-width: 220px; max-width: 300px; background: var(--card);
+  border-radius: var(--radius); padding: 1.5em; border: 1px solid rgba(255,255,255,0.06);
+  text-align: left; position: relative; overflow: hidden;
+}
+.tier-card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+}
+.tier-card.t1::before { background: var(--accent); }
+.tier-card.t2::before { background: var(--accent2); }
+.tier-card.t3::before { background: var(--green); }
+.tier-card .tier-num { font-size: 3em; font-weight: 900; opacity: 0.1; position: absolute; right: 0.8em; top: 0.2em; }
+.tier-card h4 { font-size: 1.1em; margin-bottom: 0.3em; }
+.tier-card p { font-size: 0.85em; margin-top: 0.4em; }
+.flow-box {
+  background: var(--card); border-radius: var(--radius); padding: 1.5em 2em;
+  border: 1px solid rgba(255,255,255,0.06); max-width: 500px; margin: 1em auto;
+  font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em;
+  text-align: left; line-height: 1.8;
+}
+.arrow-down { font-size: 1.2em; color: var(--muted); }
+.cta {
+  display: inline-block; padding: 0.8em 2em; border-radius: 99px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #fff; font-weight: 700; text-decoration: none; margin-top: 1.5em;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.cta:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(108,92,231,0.3); }
+.nav-hint {
+  position: fixed; bottom: 1.5em; right: 2em; font-size: 0.8em; color: rgba(255,255,255,0.2);
+  z-index: 10;
+}
+.page-num { font-size: 0.8em; color: var(--muted); margin-top: 2em; }
+blockquote {
+  border-left: 3px solid var(--accent); padding-left: 1.2em;
+  margin: 1em auto; max-width: 600px; font-style: italic;
+  color: var(--muted); text-align: left;
+}
+.ref-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px,1fr)); gap: 0.8em; max-width: 900px; margin: 1em auto; }
+.ref-card {
+  background: var(--card); border-radius: var(--radius); padding: 1em 1.2em;
+  border: 1px solid rgba(255,255,255,0.04); text-align: left; font-size: 0.82em;
+}
+.ref-card .author { font-weight: 600; color: var(--accent2); }
+.ref-card .title { color: var(--text); margin: 0.2em 0; }
+.ref-card .venue { color: var(--muted); font-size: 0.85em; }
+</style>
+</head>
+<body>
+
+<div class="slides" id="slides">
+
+<!-- Slide 0: Title -->
+<div class="slide active" data-index="0">
+  <h1><span class="gradient">模型多想想</span><br>人类少操心</h1>
+  <h3>Let the model think more, so humans worry less</h3>
+  <div class="pill-row">
+    <span class="badge badge-purple">Agent Tool Discipline</span>
+    <span class="badge badge-teal">Bounded Rationality</span>
+    <span class="badge badge-yellow">Open Source</span>
+  </div>
+  <p style="margin-top:1em">Three-tier structured framework that compensates for<br>LLM attention scarcity, representation collapse, and the Knowing-Doing Gap.</p>
+  <div class="page-num">1 / 8 — Click or press → to advance</div>
+</div>
+
+<!-- Slide 1: The Problem -->
+<div class="slide" data-index="1">
+  <h2>LLMs have a <span class="danger">Knowing-Doing Gap</span></h2>
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="num danger">26-54%</div>
+      <div class="label">Necessity-action mismatch<br>Cheng et al., UMD, 2026</div>
+    </div>
+    <div class="stat-card">
+      <div class="num warn">&lt;65%</div>
+      <div class="label">Best temporal alignment rate<br>TicToc benchmark, 18 models</div>
+    </div>
+    <div class="stat-card">
+      <div class="num accent">~0</div>
+      <div class="label">Cosine similarity between cognition & action vectors in late layers</div>
+    </div>
+  </div>
+  <blockquote>
+    The model internally <strong>knows</strong> it should call a tool, but the cognition vector and the execution vector become nearly <strong>orthogonal</strong> in the final layer.
+  </blockquote>
+  <p style="margin-top:0.5em">Result: the model confidently gives wrong raw output instead of using available tools.</p>
+  <div class="page-num">2 / 8</div>
+</div>
+
+<!-- Slide 2: Root Causes -->
+<div class="slide" data-index="2">
+  <h2>Three Root Causes</h2>
+  <div class="tier-row" style="max-width:900px">
+    <div class="tier-card t1">
+      <div class="tier-num">1</div>
+      <h4>🧠 Attention Scarcity</h4>
+      <p>Transformer n² attention diluted across long contexts. Models lose focus on tool descriptions buried in 10K+ token prompts. Every new token consumes finite "attention budget."</p>
+    </div>
+    <div class="tier-card t2">
+      <div class="tier-num">2</div>
+      <h4>🧩 Representation Collapse</h4>
+      <p>Cognition ("I need tool X") and execution ("call tool X") are encoded in nearly orthogonal subspaces at readout. The signal is there — it just can't reach the action layer.</p>
+    </div>
+    <div class="tier-card t3">
+      <div class="tier-num">3</div>
+      <h4>🛠️ Tool Description Bloat</h4>
+      <p>Overlapping descriptions create ambiguous selection signals. Models pick the wrong tool or skip tool use entirely. Tool descriptions are the #1 signal, not system prompts.</p>
+    </div>
+  </div>
+  <div class="page-num">3 / 8</div>
+</div>
+
+<!-- Slide 3: The Three Tiers -->
+<div class="slide" data-index="3">
+  <h2>The <span class="gradient">Three-Tier</span> Solution</h2>
+  <div class="tier-row">
+    <div class="tier-card t1">
+      <div class="tier-num">1</div>
+      <h4 class="accent">Exhaustive Tool Review</h4>
+      <p>Before concluding, scan ALL available tools. Classify by category. Force a second check: "What tool haven't I tried?"</p>
+      <span class="badge badge-purple" style="margin-top:0.8em">Guards: Knowing-Doing Gap</span>
+    </div>
+    <div class="tier-card t2">
+      <div class="tier-num">2</div>
+      <h4 class="accent">Cross-Verify Search</h4>
+      <p>≥2 independent sources. Official > journalism > social. Never trust single-source. Search before speaking, not after being corrected.</p>
+      <span class="badge badge-teal" style="margin-top:0.8em">Guards: Single-source bias</span>
+    </div>
+    <div class="tier-card t3">
+      <div class="tier-num">3</div>
+      <h4 class="green">Systematic Fact-Check</h4>
+      <p>SIFT → CoVe+FIRE → FABLE → Truth Sandwich. Four-round progressive verification. Each round reduces one dimension.</p>
+      <span class="badge badge-yellow" style="margin-top:0.8em">Guards: Factual errors</span>
+    </div>
+  </div>
+  <p style="margin-top:0.8em">Each tier catches what the previous one missed. <span class="accent">Defense in depth.</span></p>
+  <div class="page-num">4 / 8</div>
+</div>
+
+<!-- Slide 4: Flow -->
+<div class="slide" data-index="4">
+  <h2>Execution Flow</h2>
+  <div class="flow-box">
+    <div style="color:var(--muted)">USER: asks a question</div>
+    <div class="arrow-down">↓</div>
+    <div><span class="accent">TIER 1</span> — Scan all tools → "What could help?"</div>
+    <div class="arrow-down">↓</div>
+    <div>Use discovered tools (search, extract, verify…)</div>
+    <div class="arrow-down">↓</div>
+    <div><span class="accent">TIER 2</span> — Cross-verify results → ≥2 sources?</div>
+    <div class="arrow-down">↓</div>
+    <div><span class="green">TIER 3</span> — Fact-check output → SIFT→CoVe→FABLE→Sandwich</div>
+    <div class="arrow-down">↓</div>
+    <div style="color:var(--green); font-weight:700">DELIVER: verified, multi-source, fact-checked answer</div>
+    <div class="arrow-down">↓</div>
+    <div style="color:var(--muted)">HUMAN: reads once, trusts it, moves on</div>
+  </div>
+  <div class="page-num">5 / 8</div>
+</div>
+
+<!-- Slide 5: Before/After -->
+<div class="slide" data-index="5">
+  <h2>Before & After</h2>
+  <div class="stat-grid" style="max-width:900px">
+    <div class="stat-card" style="border-color:rgba(225,112,85,0.3)">
+      <div class="label" style="color:var(--danger); font-weight:700; margin-bottom:0.5em">BEFORE</div>
+      <p style="font-size:0.82em; color:var(--muted); text-align:left">
+        User asks → Model answers from memory → User spots error → "胡说八道!" → User corrects → Model searches → Model fixes → User verifies again
+      </p>
+      <div style="margin-top:0.8em; color:var(--danger); font-weight:600">Human does 3 rounds of correction</div>
+    </div>
+    <div class="stat-card" style="border-color:rgba(0,184,148,0.3)">
+      <div class="label" style="color:var(--green); font-weight:700; margin-bottom:0.5em">AFTER</div>
+      <p style="font-size:0.82em; color:var(--muted); text-align:left">
+        User asks → Tier 1: scan tools → Tier 2: cross-verify search → Tier 3: fact-check output → Verified answer delivered
+      </p>
+      <div style="margin-top:0.8em; color:var(--green); font-weight:600">Human reads once, trusts it</div>
+    </div>
+  </div>
+  <div class="page-num">6 / 8</div>
+</div>
+
+<!-- Slide 6: Research -->
+<div class="slide" data-index="6">
+  <h2>Academic Foundation</h2>
+  <div class="ref-grid">
+    <div class="ref-card">
+      <div class="author">Cheng et al.</div>
+      <div class="title">Knowing-Doing Gap in LLM Tool Use</div>
+      <div class="venue">arXiv 2605.14038, UMD, 2026</div>
+    </div>
+    <div class="ref-card">
+      <div class="author">Cheng et al.</div>
+      <div class="title">Temporal Blindness in LLM Agents</div>
+      <div class="venue">arXiv 2510.23853, UMD, 2026</div>
+    </div>
+    <div class="ref-card">
+      <div class="author">Repantis et al. (Meta)</div>
+      <div class="title">How Many Tools Should an LLM See?</div>
+      <div class="venue">arXiv 2605.24660, 2026</div>
+    </div>
+    <div class="ref-card">
+      <div class="author">Anthropic Applied AI</div>
+      <div class="title">Effective Context Engineering</div>
+      <div class="venue">anthropic.com, Sep 2025</div>
+    </div>
+    <div class="ref-card">
+      <div class="author">Barla (Adaline Labs)</div>
+      <div class="title">Why AI Agents Call the Wrong Tool</div>
+      <div class="venue">labs.adaline.ai, May 2026</div>
+    </div>
+  </div>
+  <div class="page-num">7 / 8</div>
+</div>
+
+<!-- Slide 7: CTA -->
+<div class="slide" data-index="7">
+  <h2>Ready to <span class="gradient">shift the burden?</span></h2>
+  <p style="font-size:1.1em; margin:1em 0">Three skills. One philosophy.<br>Human attention is precious. Model compute is cheap.</p>
+  <a class="cta" href="https://github.com/onezion12344/agent-tool-discipline" target="_blank">View on GitHub →</a>
+  <p style="margin-top:2em; font-size:0.85em; color:var(--muted)">
+    MIT License · Built by <span class="accent">onezion12344</span> · June 2026
+  </p>
+  <div class="page-num">8 / 8</div>
+</div>
+
+</div>
+
+<div class="nav-hint">← → or click edges</div>
+
+<script>
+const slides = document.querySelectorAll('.slide');
+let current = 0;
+
+function show(index) {
+  if (index < 0 || index >= slides.length) return;
+  slides.forEach((s, i) => {
+    s.classList.remove('active', 'past');
+    if (i < index) s.classList.add('past');
+    if (i === index) s.classList.add('active');
+  });
+  current = index;
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') {
+    e.preventDefault(); show(current + 1);
+  }
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+    e.preventDefault(); show(current - 1);
+  }
+});
+
+document.addEventListener('click', e => {
+  const w = window.innerWidth;
+  if (e.clientX > w * 0.6) show(current + 1);
+  else if (e.clientX < w * 0.4) show(current - 1);
+});
+
+// touch support
+let touchStart = 0;
+document.addEventListener('touchstart', e => { touchStart = e.touches[0].clientX; });
+document.addEventListener('touchend', e => {
+  const diff = touchStart - e.changedTouches[0].clientX;
+  if (Math.abs(diff) > 50) show(current + (diff > 0 ? 1 : -1));
+});
+</script>
+
+</body>
+</html>
